@@ -1,28 +1,66 @@
 /**
- * aMule — Frontend
+ * aMule — Frontend Application
  *
- * Handles the initial web application behaviour.
- * API integration will be enabled as the backend evolves.
+ * The web interface for the aMule network.
+ *
+ * Current MVP:
+ * - Wallet detection
+ * - Network search interaction
+ * - Resource file selection
+ * - Resource state management
+ *
+ * Backend upload and blockchain transactions
+ * will be connected in subsequent iterations.
  */
+
 
 const state = {
     walletConnected: false,
+    walletAddress: null,
     resources: []
 };
 
 
-const walletButton = document.getElementById("walletButton");
-const searchButton = document.getElementById("searchButton");
-const searchInput = document.getElementById("searchInput");
-const uploadButton = document.getElementById("uploadButton");
-const resourceList = document.getElementById("resourceList");
+/* =========================
+   DOM
+========================= */
+
+const walletButton =
+    document.getElementById("walletButton");
+
+const searchButton =
+    document.getElementById("searchButton");
+
+const searchInput =
+    document.getElementById("searchInput");
+
+const uploadButton =
+    document.getElementById("uploadButton");
+
+const emptyUploadButton =
+    document.getElementById("emptyUploadButton");
+
+const fileInput =
+    document.getElementById("fileInput");
+
+const resourceList =
+    document.getElementById("resourceList");
+
+const resourceCount =
+    document.getElementById("resourceCount");
 
 
 /* =========================
    WALLET
 ========================= */
 
-walletButton.addEventListener("click", async () => {
+walletButton.addEventListener(
+    "click",
+    handleWallet
+);
+
+
+async function handleWallet() {
 
     if (state.walletConnected) {
         disconnectWallet();
@@ -30,7 +68,7 @@ walletButton.addEventListener("click", async () => {
     }
 
     await connectWallet();
-});
+}
 
 
 async function connectWallet() {
@@ -45,6 +83,7 @@ async function connectWallet() {
         return;
     }
 
+
     try {
 
         const accounts =
@@ -52,18 +91,18 @@ async function connectWallet() {
                 method: "eth_requestAccounts"
             });
 
-        if (!accounts.length) {
+
+        if (!accounts || accounts.length === 0) {
             return;
         }
 
+
         state.walletConnected = true;
+        state.walletAddress = accounts[0];
 
-        const address = accounts[0];
 
-        walletButton.textContent =
-            `${address.slice(0, 6)}...${address.slice(-4)}`;
+        updateWalletButton();
 
-        walletButton.classList.add("connected");
 
         showNotification(
             "Wallet connected.",
@@ -72,7 +111,10 @@ async function connectWallet() {
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "Wallet connection failed:",
+            error
+        );
 
         showNotification(
             "Wallet connection cancelled.",
@@ -85,15 +127,43 @@ async function connectWallet() {
 function disconnectWallet() {
 
     state.walletConnected = false;
+    state.walletAddress = null;
 
-    walletButton.textContent =
-        "Connect Wallet";
-
-    walletButton.classList.remove("connected");
+    updateWalletButton();
 
     showNotification(
         "Wallet disconnected.",
         "success"
+    );
+}
+
+
+function updateWalletButton() {
+
+    if (
+        state.walletConnected &&
+        state.walletAddress
+    ) {
+
+        const address =
+            state.walletAddress;
+
+        walletButton.textContent =
+            `${address.slice(0, 6)}...${address.slice(-4)}`;
+
+        walletButton.classList.add(
+            "connected"
+        );
+
+        return;
+    }
+
+
+    walletButton.textContent =
+        "Connect Wallet";
+
+    walletButton.classList.remove(
+        "connected"
     );
 }
 
@@ -110,7 +180,7 @@ searchButton.addEventListener(
 
 searchInput.addEventListener(
     "keydown",
-    (event) => {
+    event => {
 
         if (event.key === "Enter") {
             performSearch();
@@ -125,6 +195,7 @@ function performSearch() {
     const query =
         searchInput.value.trim();
 
+
     if (!query) {
 
         showNotification(
@@ -137,24 +208,27 @@ function performSearch() {
         return;
     }
 
+
     /*
-     * AI semantic search will be connected here.
+     * AI semantic search will be connected
+     * to the aMule API here.
      */
 
-    showNotification(
-        `Searching the aMule network for "${query}"...`,
-        "success"
+    console.log(
+        "aMule search query:",
+        query
     );
 
-    console.log(
-        "aMule search:",
-        query
+
+    showNotification(
+        `Searching for "${query}"...`,
+        "success"
     );
 }
 
 
 /* =========================
-   UPLOAD
+   RESOURCE UPLOAD
 ========================= */
 
 uploadButton.addEventListener(
@@ -163,91 +237,169 @@ uploadButton.addEventListener(
 );
 
 
+emptyUploadButton.addEventListener(
+    "click",
+    openUpload
+);
+
+
+fileInput.addEventListener(
+    "change",
+    handleFileSelection
+);
+
+
 function openUpload() {
 
+    fileInput.value = "";
+
+    fileInput.click();
+}
+
+
+function handleFileSelection(event) {
+
+    const file =
+        event.target.files[0];
+
+
+    if (!file) {
+        return;
+    }
+
+
+    const resource = {
+        name: file.name,
+        size: file.size,
+        type: file.type || "application/octet-stream",
+        file: file
+    };
+
+
+    state.resources.push(
+        resource
+    );
+
+
+    updateResourceCount();
+
+    renderResources();
+
+
     showNotification(
-        "Resource upload is coming in the next MVP step.",
+        `${file.name} selected.`,
         "success"
     );
-}
 
 
-/* =========================
-   NOTIFICATIONS
-========================= */
-
-function showNotification(message, type = "success") {
-
-    const notification =
-        document.createElement("div");
-
-    notification.className =
-        `notification ${type}`;
-
-    notification.textContent =
-        message;
-
-    document.body.appendChild(
-        notification
+    console.log(
+        "Selected resource:",
+        {
+            name: file.name,
+            size: file.size,
+            type: file.type
+        }
     );
 
-    requestAnimationFrame(() => {
-        notification.classList.add("visible");
-    });
 
-    setTimeout(() => {
-
-        notification.classList.remove(
-            "visible"
-        );
-
-        setTimeout(() => {
-            notification.remove();
-        }, 250);
-
-    }, 3000);
+    /*
+     * NEXT STEP:
+     *
+     * Send the file to:
+     *
+     * POST /resources/upload
+     *
+     * The backend will then:
+     *
+     * 1. Encrypt the resource
+     * 2. Calculate its content hash
+     * 3. Store the encrypted blob
+     * 4. Return the Resource ID
+     */
 }
 
 
 /* =========================
-   RESOURCE UI
+   RESOURCE LIST
 ========================= */
 
 function renderResources() {
 
-    if (!state.resources.length) {
+    if (state.resources.length === 0) {
+
+        resourceList.innerHTML = `
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    🫏
+                </div>
+
+                <h3>No resources yet</h3>
+
+                <p>
+                    Be the first provider to bring intelligence
+                    to the aMule network.
+                </p>
+
+                <button
+                    id="emptyUploadButton"
+                    type="button"
+                >
+                    Upload the first resource
+                </button>
+
+            </div>
+        `;
+
+
+        document
+            .getElementById("emptyUploadButton")
+            .addEventListener(
+                "click",
+                openUpload
+            );
+
         return;
     }
 
+
     resourceList.innerHTML = "";
 
+
     state.resources.forEach(
-        resource => {
+        (resource, index) => {
 
-            const element =
-                document.createElement("div");
+            const card =
+                document.createElement("article");
 
-            element.className =
+            card.className =
                 "resource-card";
 
-            element.innerHTML = `
-                <div>
+
+            card.innerHTML = `
+                <div class="resource-info">
+
                     <strong>
                         ${escapeHtml(resource.name)}
                     </strong>
 
                     <span>
-                        ${escapeHtml(resource.description)}
+                        ${formatBytes(resource.size)}
                     </span>
+
                 </div>
 
-                <button>
+                <button
+                    type="button"
+                    data-resource-index="${index}"
+                >
                     Acquire
                 </button>
             `;
 
+
             resourceList.appendChild(
-                element
+                card
             );
         }
     );
@@ -255,8 +407,53 @@ function renderResources() {
 
 
 /* =========================
-   SECURITY
+   RESOURCE COUNTER
 ========================= */
+
+function updateResourceCount() {
+
+    resourceCount.textContent =
+        state.resources.length;
+}
+
+
+/* =========================
+   UTILITIES
+========================= */
+
+function formatBytes(bytes) {
+
+    if (bytes === 0) {
+        return "0 Bytes";
+    }
+
+
+    const units = [
+        "Bytes",
+        "KB",
+        "MB",
+        "GB",
+        "TB"
+    ];
+
+
+    const exponent =
+        Math.floor(
+            Math.log(bytes) /
+            Math.log(1024)
+        );
+
+
+    const value =
+        bytes /
+        Math.pow(1024, exponent);
+
+
+    return `${value.toFixed(
+        exponent === 0 ? 0 : 2
+    )} ${units[exponent]}`;
+}
+
 
 function escapeHtml(value) {
 
@@ -270,8 +467,63 @@ function escapeHtml(value) {
 
 
 /* =========================
+   NOTIFICATIONS
+========================= */
+
+function showNotification(
+    message,
+    type = "success"
+) {
+
+    const notification =
+        document.createElement("div");
+
+
+    notification.className =
+        `notification ${type}`;
+
+
+    notification.textContent =
+        message;
+
+
+    document.body.appendChild(
+        notification
+    );
+
+
+    requestAnimationFrame(() => {
+
+        notification.classList.add(
+            "visible"
+        );
+
+    });
+
+
+    setTimeout(() => {
+
+        notification.classList.remove(
+            "visible"
+        );
+
+
+        setTimeout(() => {
+
+            notification.remove();
+
+        }, 250);
+
+    }, 3000);
+}
+
+
+/* =========================
    STARTUP
 ========================= */
+
+renderResources();
+updateResourceCount();
 
 console.log(
     "aMule frontend initialized."

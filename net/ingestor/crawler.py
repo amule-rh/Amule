@@ -1,28 +1,19 @@
 """
 aMule — Source Crawler
 
-Orchestrates multiple external information sources.
-
-Current source:
-    RSS / Atom
-
-Future sources:
-    Web
-    GitHub
-    APIs
-    Documents
-    Agent submissions
+Orchestrates the ingestion of all enabled sources
+registered in the aMule Source Catalog.
 
 Pipeline:
 
-    Sources
-       ↓
-    Crawler
-       ↓
-    Ingestor
-       ↓
-    Processor
-       ↓
+    Source Catalog
+          ↓
+       Crawler
+          ↓
+       Ingestor
+          ↓
+       Processor
+          ↓
     Processed Resources
 """
 
@@ -36,9 +27,15 @@ from net.ingestor.processor import (
     process_batch,
     resource_to_dict,
 )
+
 from net.ingestor.rss import (
     ingest_rss,
     resource_candidate,
+)
+
+from net.ingestor.sources import (
+    Source,
+    SourceCatalog,
 )
 
 
@@ -51,20 +48,25 @@ class CrawlResult:
     sources_processed: int
     candidates_found: int
     resources_created: int
-    resources: list[ProcessedResource]
-    errors: list[dict[str, str]]
+
+    resources: list[
+        ProcessedResource
+    ]
+
+    errors: list[
+        dict[str, str]
+    ]
 
 
 def crawl_rss_source(
-    feed_url: str,
+    source: Source,
 ) -> list[dict[str, Any]]:
     """
-    Ingest a single RSS/Atom source and convert
-    its items into resource candidates.
+    Ingest a single RSS/Atom source.
     """
 
     items = ingest_rss(
-        feed_url
+        source.url
     )
 
     candidates = []
@@ -77,6 +79,18 @@ def crawl_rss_source(
 
         candidate["ingestor"] = "rss"
 
+        candidate["source_id"] = (
+            source.source_id
+        )
+
+        candidate["source_name"] = (
+            source.name
+        )
+
+        candidate["category"] = (
+            source.category
+        )
+
         candidates.append(
             candidate
         )
@@ -84,17 +98,48 @@ def crawl_rss_source(
     return candidates
 
 
-def crawl_sources(
-    sources: list[str],
+def crawl_source(
+    source: Source,
+) -> list[dict[str, Any]]:
+    """
+    Dispatch a source to the appropriate ingestor.
+
+    Currently supported:
+        RSS
+        Atom
+
+    Future:
+        Web
+        GitHub
+        API
+        Documents
+    """
+
+    if source.source_type.lower() in {
+        "rss",
+        "atom",
+    }:
+
+        return crawl_rss_source(
+            source
+        )
+
+    raise ValueError(
+        f"Unsupported source type: "
+        f"{source.source_type}"
+    )
+
+
+def crawl_catalog(
+    catalog: SourceCatalog,
     known_resource_ids: set[str] | None = None,
 ) -> CrawlResult:
     """
-    Crawl multiple RSS/Atom sources.
-
-    Sources that fail do not stop the entire crawl.
+    Crawl every enabled source in the catalog.
     """
 
     if known_resource_ids is None:
+
         known_resource_ids = set()
 
     all_candidates: list[
@@ -107,14 +152,15 @@ def crawl_sources(
 
     sources_processed = 0
 
-    for source in sources:
+    sources = catalog.list(
+        enabled_only=True
+    )
 
-        if not source:
-            continue
+    for source in sources:
 
         try:
 
-            candidates = crawl_rss_source(
+            candidates = crawl_source(
                 source
             )
 
@@ -128,7 +174,10 @@ def crawl_sources(
 
             errors.append(
                 {
-                    "source": source,
+                    "source_id": (
+                        source.source_id
+                    ),
+                    "source": source.url,
                     "error": str(error),
                 }
             )
@@ -139,12 +188,14 @@ def crawl_sources(
     )
 
     return CrawlResult(
-        sources_processed=sources_processed,
-        candidates_found=len(
-            all_candidates
+        sources_processed=(
+            sources_processed
         ),
-        resources_created=len(
-            resources
+        candidates_found=(
+            len(all_candidates)
+        ),
+        resources_created=(
+            len(resources)
         ),
         resources=resources,
         errors=errors,
@@ -184,24 +235,11 @@ def crawl_to_dict(
 if __name__ == "__main__":
 
     import json
-    import sys
 
-    if len(sys.argv) < 2:
+    catalog = SourceCatalog()
 
-        print(
-            "Usage:"
-        )
-
-        print(
-            "python net/ingestor/crawler.py <RSS_URL> [RSS_URL...]"
-        )
-
-        raise SystemExit(1)
-
-    sources = sys.argv[1:]
-
-    result = crawl_sources(
-        sources
+    result = crawl_catalog(
+        catalog
     )
 
     print(

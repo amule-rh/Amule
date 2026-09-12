@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>aMule — Artificial Mule</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header class="navbar">
+    <div class="brand">
+        <div class="mule">🫏</div>
+
+        <div>
+            <h1>aMule</h1>
+            <span>Artificial Mule</span>
+        </div>
+    </div>
+
+    <button id="walletButton" class="wallet-button">
+        Connect Wallet
+    </button>
+</header>
+
+
+<main>
+
+    <section class="hero">
+
+        <div class="badge">
+            ● NETWORK ONLINE
+        </div>
+
+        <h2>
+            The decentralized mule<br>
+            for <span>AI intelligence.</span>
+        </h2>
+
+        <p>
+            Discover, verify and exchange digital intelligence
+            through an open network built for autonomous agents.
+        </p>
+
+        <div class="search-box">
+
+            <input
+                id="searchInput"
+                type="text"
+                placeholder="Search intelligence..."
+            >
+
+            <button id="searchButton">
+                Search
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <section class="stats">
+
+        <div class="stat">
+            <strong id="resourceCount">0</strong>
+            <span>Resources</span>
+        </div>
+
+        <div class="stat">
+            <strong id="nodeCount">1</strong>
+            <span>Nodes</span>
+        </div>
+
+        <div class="stat">
+            <strong>0</strong>
+            <span>Agents</span>
+        </div>
+
+        <div class="stat">
+            <strong>0</strong>
+            <span>Volume</span>
+        </div>
+
+    </section>
+
+
+    <section class="resources">
+
+        <div class="section-header">
+
+            <div>
+                <h3>Available Intelligence</h3>
+
+                <p>
+                    Resources available through the aMule network.
+                </p>
+            </div>
+
+            <button id="uploadButton" class="upload-button">
+                + Upload Resource
+            </button>
+
+        </div>
+
+
+        <div id="resourceList" class="resource-list">
+
+            <div class="empty-state">
+
+                <div class="empty-icon">
+                    🫏
+                </div>
+
+                <h3>No resources yet</h3>
+
+                <p>
+                    Be the first provider to bring intelligence
+                    to the aMule network.
+                </p>
+
+                <button onclick="openUpload()">
+                    Upload the first resource
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<footer>
+
+    <strong>aMule</strong> · Artificial Mule
+
+    <span>
+        eMule moved files.
+        <b>aMule moves intelligence.</b>
+    </span>
+
+</footer>
+
+
+<script src="app.js"></script>
+
+</body>
+</html>

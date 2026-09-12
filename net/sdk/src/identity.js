@@ -1,25 +1,24 @@
 /**
  * aMule Net — Resource Identity
  *
- * Resource identity specification v1.
+ * Resource Identity Specification v1
  *
- * Canonical rule:
+ * aMule separates:
  *
- *     raw content
- *          ↓
- *        SHA-256
- *          ↓
- *      contentHash
- *          ↓
- *       resourceId
+ *   resourceId
+ *       ↓
+ *   Stable logical identity
  *
- * In v1:
+ *   contentHash
+ *       ↓
+ *   SHA-256 fingerprint of the exact content
  *
- *     resourceId == contentHash
+ * This allows a resource to have multiple versions:
  *
- * This allows identical content published by
- * different operators to remain independently
- * attributable while sharing the same content identity.
+ *   resourceId = remains stable
+ *   contentHash = changes with every new content version
+ *
+ * The same content may also exist under different resourceIds.
  */
 
 import {
@@ -32,7 +31,7 @@ import {
 /**
  * Calculate SHA-256 from UTF-8 text.
  *
- * Returns a hexadecimal hash without 0x.
+ * Returns hexadecimal without 0x.
  */
 export async function sha256String(
     value,
@@ -70,21 +69,71 @@ export async function sha256String(
 
 
 /**
- * Calculate the SHA-256 content hash.
+ * Calculate SHA-256 from binary data.
+ *
+ * Accepts:
+ * - Uint8Array
+ * - ArrayBuffer
+ */
+export async function sha256Bytes(
+    data,
+) {
+    if (
+        data instanceof ArrayBuffer
+    ) {
+        data = new Uint8Array(data);
+    }
+
+    if (
+        !(data instanceof Uint8Array)
+    ) {
+        throw new Error(
+            "Data must be Uint8Array or ArrayBuffer.",
+        );
+    }
+
+    const hash =
+        await crypto.subtle.digest(
+            "SHA-256",
+            data,
+        );
+
+    return Array.from(
+        new Uint8Array(hash),
+    )
+        .map(
+            (byte) =>
+                byte
+                    .toString(16)
+                    .padStart(2, "0"),
+        )
+        .join("");
+}
+
+
+/**
+ * Calculate the content hash of a text resource.
+ *
+ * Content hash is always based on the actual content,
+ * not metadata such as title, filename or source.
  */
 export async function calculateContentHash(
     content,
 ) {
-    if (
-        typeof content !== "string"
-    ) {
-        throw new Error(
-            "Content must be a string.",
-        );
-    }
-
     return sha256String(
         content,
+    );
+}
+
+
+/**
+ * Calculate the content hash of binary data.
+ */
+export async function calculateBinaryContentHash(
+    data,
+) {
+    return sha256Bytes(
+        data,
     );
 }
 
@@ -131,18 +180,52 @@ export function hashToBytes32(
 
 
 /**
- * Create an aMule Resource ID.
+ * Create a stable resource ID from a namespace
+ * and an external stable identifier.
  *
- * Protocol v1:
+ * Example:
  *
- *     Resource ID = SHA-256(content)
+ * namespace:
+ *     rss:https://example.com/feed.xml
+ *
+ * stableId:
+ *     article-guid-123
+ *
+ * The resulting ID remains stable as long as
+ * namespace + stableId remain unchanged.
  */
-export async function createResourceId(
-    content,
+export async function createDeterministicResourceId(
+    namespace,
+    stableId,
 ) {
+    if (
+        typeof namespace !== "string" ||
+        !namespace.trim()
+    ) {
+        throw new Error(
+            "Resource namespace is required.",
+        );
+    }
+
+    if (
+        typeof stableId !== "string" ||
+        !stableId.trim()
+    ) {
+        throw new Error(
+            "Stable resource identifier is required.",
+        );
+    }
+
+    const canonical =
+        [
+            "amule-resource-v1",
+            namespace.trim(),
+            stableId.trim(),
+        ].join("\n");
+
     const hash =
-        await calculateContentHash(
-            content,
+        await sha256String(
+            canonical,
         );
 
     return hashToBytes32(
@@ -152,9 +235,38 @@ export async function createResourceId(
 
 
 /**
+ * Create a cryptographically random resource ID.
+ *
+ * Used when a resource does not have an external
+ * deterministic identity, for example user-uploaded files.
+ */
+export function createRandomResourceId() {
+    const bytes =
+        new Uint8Array(32);
+
+    crypto.getRandomValues(
+        bytes,
+    );
+
+    return (
+        "0x" +
+        Array.from(bytes)
+            .map(
+                (byte) =>
+                    byte
+                        .toString(16)
+                        .padStart(2, "0"),
+            )
+            .join("")
+    );
+}
+
+
+/**
  * Generate a deterministic protocol identifier.
  *
- * Used for namespaces and future protocol metadata.
+ * Useful for namespaces, protocol metadata
+ * and future registry identifiers.
  */
 export function deterministicId(
     value,
@@ -182,8 +294,7 @@ export function isValidResourceId(
     resourceId,
 ) {
     return (
-        typeof resourceId === "string"
-        &&
+        typeof resourceId === "string" &&
         /^0x[0-9a-fA-F]{64}$/.test(
             resourceId,
         )

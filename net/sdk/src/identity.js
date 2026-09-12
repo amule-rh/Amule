@@ -1,11 +1,11 @@
 /**
  * aMule Net — Resource Identity
  *
- * Deterministic resource identity utilities.
+ * Resource identity specification v1.
  *
- * Rule:
+ * Canonical rule:
  *
- *     canonical content
+ *     raw content
  *          ↓
  *        SHA-256
  *          ↓
@@ -13,8 +13,13 @@
  *          ↓
  *       resourceId
  *
- * The same content must always produce
- * the same identity.
+ * In v1:
+ *
+ *     resourceId == contentHash
+ *
+ * This allows identical content published by
+ * different operators to remain independently
+ * attributable while sharing the same content identity.
  */
 
 import {
@@ -25,9 +30,9 @@ import {
 
 
 /**
- * Calculate the SHA-256 hash of a string.
+ * Calculate SHA-256 from UTF-8 text.
  *
- * Returns a hexadecimal hash without the 0x prefix.
+ * Returns a hexadecimal hash without 0x.
  */
 export async function sha256String(
     value,
@@ -65,25 +70,11 @@ export async function sha256String(
 
 
 /**
- * Calculate a deterministic hash
- * from a resource title and content.
- *
- * Canonical representation:
- *
- *     title + "\\n" + content
+ * Calculate the SHA-256 content hash.
  */
 export async function calculateContentHash(
-    title,
     content,
 ) {
-    if (
-        typeof title !== "string"
-    ) {
-        throw new Error(
-            "Title must be a string.",
-        );
-    }
-
     if (
         typeof content !== "string"
     ) {
@@ -92,18 +83,14 @@ export async function calculateContentHash(
         );
     }
 
-    const canonical =
-        `${title}\n${content}`;
-
     return sha256String(
-        canonical,
+        content,
     );
 }
 
 
 /**
- * Convert a SHA-256 hexadecimal hash
- * into a bytes32-compatible value.
+ * Convert a hexadecimal hash into bytes32.
  */
 export function hashToBytes32(
     hash,
@@ -130,7 +117,7 @@ export function hashToBytes32(
     }
 
     if (
-        !/^[0-9a-fA-F]+$/.test(
+        !/^[0-9a-fA-F]{64}$/.test(
             normalized,
         )
     ) {
@@ -144,18 +131,17 @@ export function hashToBytes32(
 
 
 /**
- * Create the aMule Resource ID.
+ * Create an aMule Resource ID.
  *
- * For now Resource ID is identical to the
- * SHA-256 content hash.
+ * Protocol v1:
+ *
+ *     Resource ID = SHA-256(content)
  */
 export async function createResourceId(
-    title,
     content,
 ) {
     const hash =
         await calculateContentHash(
-            title,
             content,
         );
 
@@ -166,11 +152,9 @@ export async function createResourceId(
 
 
 /**
- * Generate a deterministic identifier
- * for arbitrary textual metadata.
+ * Generate a deterministic protocol identifier.
  *
- * This is useful for future indexing,
- * namespaces and protocol-level identifiers.
+ * Used for namespaces and future protocol metadata.
  */
 export function deterministicId(
     value,
@@ -192,26 +176,18 @@ export function deterministicId(
 
 
 /**
- * Validate a Resource ID.
+ * Validate an aMule Resource ID.
  */
 export function isValidResourceId(
     resourceId,
 ) {
-    if (
-        typeof resourceId !== "string"
-    ) {
-        return false;
-    }
-
-    if (
-        !/^0x[0-9a-fA-F]{64}$/.test(
+    return (
+        typeof resourceId === "string"
+        &&
+        /^0x[0-9a-fA-F]{64}$/.test(
             resourceId,
         )
-    ) {
-        return false;
-    }
-
-    return true;
+    );
 }
 
 

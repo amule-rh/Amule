@@ -1,0 +1,14 @@
+{
+  "name": "amule-net-storage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "aMule Net Storage adapter",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@net-protocol/storage": "^0.1.17",
+    "viem": "^2.0.0"
+  }
+}

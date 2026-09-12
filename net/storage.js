@@ -3,11 +3,13 @@
  *
  * Bridge between aMule and Net Protocol Storage.
  *
- * IMPORTANT:
- * This first version is intentionally read/prepare only.
- * It does NOT sign or broadcast blockchain transactions.
+ * This module handles:
+ * - Net Storage client configuration
+ * - aMule storage keys
+ * - resource preparation
+ * - resource retrieval
  *
- * The next step will add the wallet/transaction layer.
+ * Blockchain writes are intentionally isolated.
  */
 
 import {
@@ -21,11 +23,23 @@ import {
  * =========================================================
  * CONFIGURATION
  * =========================================================
+ *
+ * NET_CHAIN_ID must be supplied through the environment.
+ *
+ * We do NOT hard-code Base or Robinhood Chain here because
+ * Net Protocol is multi-chain.
  */
 
-const NET_CHAIN_ID = Number(
-    process.env.NET_CHAIN_ID || 8453
-);
+const NET_CHAIN_ID =
+    Number(process.env.NET_CHAIN_ID);
+
+
+if (!NET_CHAIN_ID) {
+    throw new Error(
+        "NET_CHAIN_ID environment variable is required."
+    );
+}
+
 
 const NET_RPC_URL =
     process.env.NET_RPC_URL || undefined;
@@ -41,11 +55,13 @@ const clientOptions = {
     chainId: NET_CHAIN_ID,
 };
 
+
 if (NET_RPC_URL) {
     clientOptions.overrides = {
         rpcUrls: [NET_RPC_URL],
     };
 }
+
 
 const client = new StorageClient(
     clientOptions
@@ -56,9 +72,6 @@ const client = new StorageClient(
  * =========================================================
  * RESOURCE KEY
  * =========================================================
- *
- * aMule uses the encrypted SHA-256 resource ID
- * as the deterministic storage key.
  */
 
 export function createStorageKey(
@@ -82,9 +95,10 @@ export function createStorageKey(
  * PREPARE RESOURCE
  * =========================================================
  *
- * Prepares encrypted resource data for Net Storage.
+ * Converts encrypted aMule data into the format expected
+ * by Net Storage.
  *
- * This function does not broadcast anything.
+ * This does NOT broadcast a blockchain transaction.
  */
 
 export function prepareResource(
@@ -98,20 +112,25 @@ export function prepareResource(
         );
     }
 
+
     if (!Buffer.isBuffer(encryptedData)) {
         throw new Error(
             "encryptedData must be a Buffer."
         );
     }
 
+
     const storageKey =
         createStorageKey(resourceId);
+
 
     const base64Data =
         encryptedData.toString("base64");
 
+
     const dataUri =
         `data:application/octet-stream;base64,${base64Data}`;
+
 
     const processed =
         processDataForStorage(
@@ -120,6 +139,7 @@ export function prepareResource(
             storageKey,
             OPTIMAL_CHUNK_SIZE
         );
+
 
     return {
         resourceId,
@@ -137,10 +157,10 @@ export function prepareResource(
  * READ RESOURCE
  * =========================================================
  *
- * Reads a resource from Net Storage.
+ * Reads a resource through Net Storage Router.
  *
- * This is useful after a resource has already been
- * published on-chain.
+ * This supports resources that require chunked
+ * storage resolution.
  */
 
 export async function readResource(
@@ -153,14 +173,17 @@ export async function readResource(
         );
     }
 
+
     const storageKey =
         createStorageKey(resourceId);
+
 
     const result =
         await client.getViaRouter({
             key: storageKey,
             operator: operatorAddress,
         });
+
 
     return {
         resourceId,
@@ -174,7 +197,41 @@ export async function readResource(
 
 /**
  * =========================================================
- * HEALTH CHECK
+ * READ RESOURCE BY KEY
+ * =========================================================
+ *
+ * Useful when aMule discovers a resource belonging
+ * to another Net operator.
+ */
+
+export async function readResourceByKey(
+    storageKey,
+    operatorAddress
+) {
+    if (!operatorAddress) {
+        throw new Error(
+            "Operator address is required."
+        );
+    }
+
+
+    if (!storageKey) {
+        throw new Error(
+            "Storage key is required."
+        );
+    }
+
+
+    return await client.getViaRouter({
+        key: storageKey,
+        operator: operatorAddress,
+    });
+}
+
+
+/**
+ * =========================================================
+ * NET STORAGE INFO
  * =========================================================
  */
 
@@ -186,24 +243,4 @@ export function getNetStorageInfo() {
         sdk: "@net-protocol/storage",
         status: "configured",
     };
-}
-
-
-/**
- * =========================================================
- * CLI TEST
- * =========================================================
- */
-
-if (
-    process.argv[1] &&
-    process.argv[1].endsWith("storage.js")
-) {
-    console.log(
-        "aMule Net Storage Adapter"
-    );
-
-    console.log(
-        getNetStorageInfo()
-    );
 }

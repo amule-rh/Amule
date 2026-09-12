@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -12,139 +15,326 @@
         content="aMule — The decentralized mule for AI intelligence."
     >
 
+    <meta
+        name="theme-color"
+        content="#080909"
+    >
+
     <title>aMule — Artificial Mule</title>
 
-    <link rel="stylesheet" href="style.css">
+
+    <!-- Fonts -->
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+
+    <!-- Main stylesheet -->
+
+    <link
+        rel="stylesheet"
+        href="/style.css"
+    >
+
 </head>
+
 
 <body>
 
+
+<!-- =====================================================
+     NAVIGATION
+===================================================== -->
+
 <header class="navbar">
 
-    <a href="/" class="brand" aria-label="aMule home">
+    <a
+        href="/"
+        class="brand"
+        aria-label="aMule home"
+    >
 
-        <div class="mule">
-            🫏
-        </div>
+        <img
+            src="/static/assets/amule-mascot.png"
+            alt="aMule Artificial Mule"
+            class="brand-mascot"
+        >
+
 
         <div class="brand-copy">
-            <h1>aMule</h1>
-            <span>Artificial Mule</span>
+
+            <strong>
+                aMule
+            </strong>
+
+            <span>
+                ARTIFICIAL MULE
+            </span>
+
         </div>
 
     </a>
+
 
     <button
         id="walletButton"
         class="wallet-button"
         type="button"
     >
+
         Connect Wallet
+
     </button>
 
 </header>
 
 
+
+<!-- =====================================================
+     MAIN
+===================================================== -->
+
 <main>
 
-    <!-- HERO -->
+
+    <!-- =================================================
+         HERO
+    ================================================= -->
 
     <section class="hero">
 
-        <div class="badge">
-            <span>●</span>
-            NETWORK ONLINE
-        </div>
-
-        <h2>
-            The decentralized mule<br>
-            for <span>AI intelligence.</span>
-        </h2>
-
-        <p>
-            Discover, verify and exchange digital intelligence
-            through an open network built for autonomous agents.
-        </p>
+        <div class="hero-content">
 
 
-        <!-- SEARCH -->
+            <!-- Network status -->
 
-        <div class="search-box">
+            <div class="badge">
 
-            <input
-                id="searchInput"
-                type="search"
-                autocomplete="off"
-                placeholder="Search intelligence..."
-                aria-label="Search intelligence"
-            >
+                <span class="status-dot"></span>
 
-            <button
-                id="searchButton"
-                type="button"
-            >
-                Search
-            </button>
+                NETWORK ONLINE
+
+            </div>
+
+
+
+            <!-- Main headline -->
+
+            <h1>
+
+                The decentralized mule
+                <br>
+
+                for
+                <span>
+                    AI intelligence.
+                </span>
+
+            </h1>
+
+
+
+            <!-- Description -->
+
+            <p class="hero-description">
+
+                Discover, verify and exchange digital intelligence
+                through an open network built for autonomous agents.
+
+            </p>
+
+
+
+            <!-- Search -->
+
+            <div class="search-box">
+
+                <div class="search-input-wrapper">
+
+                    <span
+                        class="search-icon"
+                        aria-hidden="true"
+                    >
+                        ⌕
+                    </span>
+
+
+                    <input
+                        id="searchInput"
+                        type="search"
+                        autocomplete="off"
+                        placeholder="Search intelligence..."
+                        aria-label="Search intelligence"
+                    >
+
+                </div>
+
+
+                <button
+                    id="searchButton"
+                    type="button"
+                >
+                    Search
+                </button>
+
+            </div>
+
+
+
+            <!-- Hero information -->
+
+            <div class="hero-note">
+
+                <span>
+                    ●
+                </span>
+
+                Open network · Encrypted resources · AI ready
+
+            </div>
 
         </div>
 
     </section>
 
 
-    <!-- NETWORK STATS -->
+
+    <!-- =================================================
+         NETWORK STATS
+    ================================================= -->
 
     <section
         class="stats"
         aria-label="Network statistics"
     >
 
-        <div class="stat">
-            <strong id="resourceCount">0</strong>
-            <span>Resources</span>
-        </div>
+
+        <!-- Resources -->
 
         <div class="stat">
-            <strong id="nodeCount">1</strong>
-            <span>Nodes</span>
+
+            <strong id="resourceCount">
+                0
+            </strong>
+
+            <span>
+                Resources
+            </span>
+
         </div>
 
-        <div class="stat">
-            <strong id="agentCount">0</strong>
-            <span>Agents</span>
-        </div>
+
+
+        <!-- Nodes -->
 
         <div class="stat">
-            <strong id="volumeCount">0</strong>
-            <span>Volume</span>
+
+            <strong id="nodeCount">
+                1
+            </strong>
+
+            <span>
+                Nodes
+            </span>
+
+        </div>
+
+
+
+        <!-- Agents -->
+
+        <div class="stat">
+
+            <strong id="agentCount">
+                0
+            </strong>
+
+            <span>
+                Agents
+            </span>
+
+        </div>
+
+
+
+        <!-- Volume -->
+
+        <div class="stat">
+
+            <strong id="volumeCount">
+                0
+            </strong>
+
+            <span>
+                Volume
+            </span>
+
         </div>
 
     </section>
 
 
-    <!-- RESOURCES -->
+
+    <!-- =================================================
+         AVAILABLE INTELLIGENCE
+    ================================================= -->
 
     <section class="resources">
 
+
+        <!-- Section header -->
+
         <div class="section-header">
 
+
             <div>
-                <h3>Available Intelligence</h3>
+
+                <div class="eyebrow">
+                    NETWORK
+                </div>
+
+
+                <h2>
+                    Available Intelligence
+                </h2>
+
 
                 <p>
                     Resources available through the aMule network.
                 </p>
+
             </div>
 
+
+
+            <!-- Upload -->
 
             <button
                 id="uploadButton"
                 class="upload-button"
                 type="button"
             >
-                + Upload Resource
+
+                <span>
+                    +
+                </span>
+
+                Upload Resource
+
             </button>
 
         </div>
+
 
 
         <!-- Hidden native file selector -->
@@ -156,6 +346,7 @@
         >
 
 
+
         <!-- Resource list -->
 
         <div
@@ -163,25 +354,45 @@
             class="resource-list"
         >
 
+
+            <!-- Empty state -->
+
             <div class="empty-state">
 
-                <div class="empty-icon">
-                    🫏
-                </div>
 
-                <h3>No resources yet</h3>
-
-                <p>
-                    Be the first provider to bring intelligence
-                    to the aMule network.
-                </p>
-
-                <button
-                    id="emptyUploadButton"
-                    type="button"
+                <img
+                    src="/static/assets/amule-mascot.png"
+                    alt=""
+                    class="empty-mascot"
                 >
-                    Upload the first resource
-                </button>
+
+
+                <div class="empty-content">
+
+                    <span class="empty-label">
+                        NETWORK EMPTY
+                    </span>
+
+
+                    <h3>
+                        No resources yet
+                    </h3>
+
+
+                    <p>
+                        Be the first provider to bring
+                        intelligence to the aMule network.
+                    </p>
+
+
+                    <button
+                        id="emptyUploadButton"
+                        type="button"
+                    >
+                        Upload the first resource
+                    </button>
+
+                </div>
 
             </div>
 
@@ -189,25 +400,205 @@
 
     </section>
 
+
+
+    <!-- =================================================
+         PROTOCOL
+    ================================================= -->
+
+    <section class="protocol">
+
+
+        <!-- Protocol introduction -->
+
+        <div class="protocol-intro">
+
+            <span class="eyebrow">
+                THE PROTOCOL
+            </span>
+
+
+            <h2>
+
+                eMule moved files.
+
+                <br>
+
+                <span>
+                    aMule moves intelligence.
+                </span>
+
+            </h2>
+
+        </div>
+
+
+
+        <!-- Protocol steps -->
+
+        <div class="protocol-grid">
+
+
+            <!-- Discover -->
+
+            <article class="protocol-card">
+
+                <span class="protocol-number">
+                    01
+                </span>
+
+
+                <h3>
+                    Discover
+                </h3>
+
+
+                <p>
+                    Find datasets, knowledge and digital
+                    resources through the network.
+                </p>
+
+            </article>
+
+
+
+            <!-- Verify -->
+
+            <article class="protocol-card">
+
+                <span class="protocol-number">
+                    02
+                </span>
+
+
+                <h3>
+                    Verify
+                </h3>
+
+
+                <p>
+                    Content addressing and cryptographic
+                    fingerprints verify resource integrity.
+                </p>
+
+            </article>
+
+
+
+            <!-- Exchange -->
+
+            <article class="protocol-card">
+
+                <span class="protocol-number">
+                    03
+                </span>
+
+
+                <h3>
+                    Exchange
+                </h3>
+
+
+                <p>
+                    Agents and providers exchange intelligence
+                    through programmable access and payments.
+                </p>
+
+            </article>
+
+
+
+            <!-- Use -->
+
+            <article class="protocol-card">
+
+                <span class="protocol-number">
+                    04
+                </span>
+
+
+                <h3>
+                    Use
+                </h3>
+
+
+                <p>
+                    Intelligence becomes immediately available
+                    to humans and autonomous AI agents.
+                </p>
+
+            </article>
+
+        </div>
+
+    </section>
+
+
 </main>
 
 
+
+<!-- =====================================================
+     FOOTER
+===================================================== -->
+
 <footer>
 
-    <div>
-        <strong>aMule</strong>
-        <span> · Artificial Mule</span>
+
+    <!-- Footer brand -->
+
+    <div class="footer-brand">
+
+
+        <img
+            src="/static/assets/amule-mascot.png"
+            alt="aMule"
+        >
+
+
+        <div>
+
+            <strong>
+                aMule
+            </strong>
+
+
+            <span>
+                Artificial Mule
+            </span>
+
+        </div>
+
     </div>
 
-    <div>
-        eMule moved files.
-        <b>aMule moves intelligence.</b>
+
+
+    <!-- Footer message -->
+
+    <div class="footer-tagline">
+
+        <span>
+            Peer to a brighter AI future.
+        </span>
+
+
+        <b>
+            aMule
+        </b>
+
     </div>
 
 </footer>
 
 
-<script src="app.js"></script>
+
+<!-- =====================================================
+     JAVASCRIPT
+===================================================== -->
+
+<script src="/app.js"></script>
+
 
 </body>
+
 </html>

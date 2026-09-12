@@ -1,101 +1,154 @@
 """
 aMule — API
 
-First API layer for the aMule network.
+API layer for the aMule network.
+
+Current MVP:
+- Health check
+- Resource upload
+- Encryption
+- Content hashing
+- Local encrypted storage
 """
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pathlib import Path
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 
 from core.encryption import generate_key
-from core.storage import store_resource, retrieve_resource
+from core.storage import store_resource
 
 
 app = FastAPI(
     title="aMule API",
     description="The decentralized mule for AI intelligence.",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 
-class ResourceRequest(BaseModel):
-    content: str
+# =========================
+# CORS
+# =========================
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-class ResourceResponse(BaseModel):
-    resource_id: str
-    key: str
-
+# =========================
+# ROOT
+# =========================
 
 @app.get("/")
 def root():
     return {
         "name": "aMule",
-        "version": "0.1.0",
-        "message": "The decentralized mule for AI intelligence.",
+        "version": "0.2.0",
+        "description": "The decentralized mule for AI intelligence.",
         "status": "online",
     }
 
 
+# =========================
+# HEALTH
+# =========================
+
 @app.get("/health")
 def health():
     return {
-        "status": "healthy"
+        "status": "healthy",
     }
 
 
-@app.post("/resources", response_model=ResourceResponse)
-def create_resource(request: ResourceRequest):
-    """
-    Encrypt and store a text resource.
+# =========================
+# RESOURCE UPLOAD
+# =========================
 
-    This is intentionally simple for the MVP.
-    File uploads will be added later.
+@app.post("/resources/upload")
+async def upload_resource(
+    file: UploadFile = File(...)
+):
     """
+    Upload a resource to aMule.
+
+    Current flow:
+
+    File
+      ↓
+    Read
+      ↓
+    Encrypt
+      ↓
+    SHA-256
+      ↓
+    Local storage
+      ↓
+    Resource ID
+    """
+
+    if not file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Filename is required.",
+        )
+
+
     try:
+
+        data = await file.read()
+
+
+        if not data:
+            raise HTTPException(
+                status_code=400,
+                detail="The uploaded file is empty.",
+            )
+
+
+        # Generate a unique encryption key
         key = generate_key()
 
+
+        # Encrypt + hash + store
         resource_id = store_resource(
-            request.content.encode("utf-8"),
+            data,
             key,
         )
 
-        return ResourceResponse(
-            resource_id=resource_id,
-            key=key.decode("utf-8"),
-        )
-
-    except Exception as error:
-        raise HTTPException(
-            status_code=500,
-            detail=str(error),
-        )
-
-
-@app.get("/resources/{resource_id}")
-def get_resource(resource_id: str, key: str):
-    """
-    Retrieve and decrypt a resource.
-    """
-    try:
-        data = retrieve_resource(
-            resource_id,
-            key.encode("utf-8"),
-        )
 
         return {
+            "success": True,
             "resource_id": resource_id,
-            "content": data.decode("utf-8"),
+            "filename": file.filename,
+            "content_type": (
+                file.content_type
+                or "application/octet-stream"
+            ),
+            "size": len(data),
+
+            # Temporary MVP behaviour.
+            # This will later be replaced by
+            # proper key management.
+            "key": key.decode("utf-8"),
         }
 
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=404,
-            detail="Resource not found",
+
+    except HTTPException:
+        raise
+
+
+    except Exception as error:
+
+        print(
+            f"aMule upload error: {error}"
         )
 
-    except Exception:
         raise HTTPException(
-            status_code=403,
-            detail="Unable to decrypt resource",
+            status_code=500,
+            detail="Unable to store resource.",
         )

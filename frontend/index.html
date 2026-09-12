@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="description"
+        content="aMule — The decentralized mule for AI intelligence."
+    >
 
     <title>aMule — Artificial Mule</title>
 
@@ -12,27 +20,40 @@
 <body>
 
 <header class="navbar">
-    <div class="brand">
-        <div class="mule">🫏</div>
 
-        <div>
+    <a href="/" class="brand" aria-label="aMule home">
+
+        <div class="mule">
+            🫏
+        </div>
+
+        <div class="brand-copy">
             <h1>aMule</h1>
             <span>Artificial Mule</span>
         </div>
-    </div>
 
-    <button id="walletButton" class="wallet-button">
+    </a>
+
+    <button
+        id="walletButton"
+        class="wallet-button"
+        type="button"
+    >
         Connect Wallet
     </button>
+
 </header>
 
 
 <main>
 
+    <!-- HERO -->
+
     <section class="hero">
 
         <div class="badge">
-            ● NETWORK ONLINE
+            <span>●</span>
+            NETWORK ONLINE
         </div>
 
         <h2>
@@ -45,15 +66,23 @@
             through an open network built for autonomous agents.
         </p>
 
+
+        <!-- SEARCH -->
+
         <div class="search-box">
 
             <input
                 id="searchInput"
-                type="text"
+                type="search"
+                autocomplete="off"
                 placeholder="Search intelligence..."
+                aria-label="Search intelligence"
             >
 
-            <button id="searchButton">
+            <button
+                id="searchButton"
+                type="button"
+            >
                 Search
             </button>
 
@@ -62,7 +91,12 @@
     </section>
 
 
-    <section class="stats">
+    <!-- NETWORK STATS -->
+
+    <section
+        class="stats"
+        aria-label="Network statistics"
+    >
 
         <div class="stat">
             <strong id="resourceCount">0</strong>
@@ -75,17 +109,19 @@
         </div>
 
         <div class="stat">
-            <strong>0</strong>
+            <strong id="agentCount">0</strong>
             <span>Agents</span>
         </div>
 
         <div class="stat">
-            <strong>0</strong>
+            <strong id="volumeCount">0</strong>
             <span>Volume</span>
         </div>
 
     </section>
 
+
+    <!-- RESOURCES -->
 
     <section class="resources">
 
@@ -99,18 +135,33 @@
                 </p>
             </div>
 
-            <button id="uploadButton" class="upload-button">
-    + Upload Resource
-</button>
 
-<input
-    type="file"
-    id="fileInput"
-    hidden
->
+            <button
+                id="uploadButton"
+                class="upload-button"
+                type="button"
+            >
+                + Upload Resource
+            </button>
+
+        </div>
 
 
-        <div id="resourceList" class="resource-list">
+        <!-- Hidden native file selector -->
+
+        <input
+            type="file"
+            id="fileInput"
+            hidden
+        >
+
+
+        <!-- Resource list -->
+
+        <div
+            id="resourceList"
+            class="resource-list"
+        >
 
             <div class="empty-state">
 
@@ -125,7 +176,10 @@
                     to the aMule network.
                 </p>
 
-                <button onclick="openUpload()">
+                <button
+                    id="emptyUploadButton"
+                    type="button"
+                >
                     Upload the first resource
                 </button>
 
@@ -140,12 +194,15 @@
 
 <footer>
 
-    <strong>aMule</strong> · Artificial Mule
+    <div>
+        <strong>aMule</strong>
+        <span> · Artificial Mule</span>
+    </div>
 
-    <span>
+    <div>
         eMule moved files.
         <b>aMule moves intelligence.</b>
-    </span>
+    </div>
 
 </footer>
 

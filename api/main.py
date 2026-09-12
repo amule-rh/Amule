@@ -13,6 +13,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.encryption import generate_key
+from core.net_registry import (
+    build_resource_record,
+    serialize_resource_record,
+    validate_resource_record,
+)
 from core.storage import store_resource
 
 
@@ -32,7 +37,7 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 app = FastAPI(
     title="aMule API",
     description="The decentralized mule for AI intelligence.",
-    version="0.3.0",
+    version="0.4.0",
 )
 
 
@@ -97,7 +102,7 @@ def api_root():
 
     return {
         "name": "aMule",
-        "version": "0.3.0",
+        "version": "0.4.0",
         "description": (
             "The decentralized mule "
             "for AI intelligence."
@@ -130,7 +135,7 @@ async def upload_resource(
     """
     Upload a resource to aMule.
 
-    Current MVP flow:
+    Current flow:
 
     File
       ↓
@@ -142,7 +147,13 @@ async def upload_resource(
       ↓
     Local encrypted storage
       ↓
-    Resource ID
+    Resource Registry
+      ↓
+    API response
+
+    The registry is currently prepared locally.
+    The next integration step will publish the
+    registry record through Net Protocol.
     """
 
     if not file.filename:
@@ -155,6 +166,10 @@ async def upload_resource(
 
     try:
 
+        # -------------------------------------------------
+        # READ FILE
+        # -------------------------------------------------
+
         data = await file.read()
 
 
@@ -166,16 +181,71 @@ async def upload_resource(
             )
 
 
-        # Generate encryption key
+        # -------------------------------------------------
+        # ENCRYPTION
+        # -------------------------------------------------
+
         key = generate_key()
 
 
-        # Encrypt + hash + store
+        # -------------------------------------------------
+        # STORAGE
+        # -------------------------------------------------
+
         resource_id = store_resource(
             data,
             key,
         )
 
+
+        # -------------------------------------------------
+        # RESOURCE REGISTRY
+        # -------------------------------------------------
+
+        content_type = (
+            file.content_type
+            or "application/octet-stream"
+        )
+
+
+        resource_record = build_resource_record(
+            name=file.filename,
+            content_hash=resource_id,
+            size=len(data),
+            content_type=content_type,
+            encrypted=True,
+            provider=None,
+        )
+
+
+        # -------------------------------------------------
+        # VALIDATE REGISTRY RECORD
+        # -------------------------------------------------
+
+        if not validate_resource_record(
+            resource_record
+        ):
+
+            raise HTTPException(
+                status_code=500,
+                detail="Invalid resource registry record.",
+            )
+
+
+        # -------------------------------------------------
+        # SERIALIZE REGISTRY RECORD
+        # -------------------------------------------------
+
+        registry_payload = (
+            serialize_resource_record(
+                resource_record
+            )
+        )
+
+
+        # -------------------------------------------------
+        # RESPONSE
+        # -------------------------------------------------
 
         return {
 
@@ -188,19 +258,28 @@ async def upload_resource(
                 file.filename,
 
             "content_type":
-                (
-                    file.content_type
-                    or "application/octet-stream"
-                ),
+                content_type,
 
             "size":
                 len(data),
 
-            # Temporary MVP only.
+            "encrypted":
+                True,
+
+            "registry":
+                resource_record,
+
+            "registry_payload":
+                registry_payload,
+
+            # -------------------------------------------------
+            # TEMPORARY MVP
             #
-            # Production aMule will use
-            # proper key management and
-            # access authorization.
+            # This key is returned only for development.
+            # Production aMule will use proper key management
+            # and wallet-based access authorization.
+            # -------------------------------------------------
+
             "key":
                 key.decode("utf-8"),
 

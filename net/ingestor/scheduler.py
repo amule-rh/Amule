@@ -1,19 +1,8 @@
 """
 aMule — Ingestion Scheduler
 
-Runs the aMule ingestion pipeline periodically.
-
-Pipeline:
-
-    Scheduler
-        ↓
-    Source Catalog
-        ↓
-    Crawler
-        ↓
-    Processor
-        ↓
-    New Resources
+Runs the aMule ingestion pipeline periodically and keeps
+persistent ingestion state between executions.
 """
 
 from __future__ import annotations
@@ -23,18 +12,12 @@ import time
 from datetime import datetime, timezone
 from typing import Callable
 
-from net.ingestor.crawler import (
-    crawl_catalog,
-)
-
-from net.ingestor.sources import (
-    SourceCatalog,
-)
+from net.ingestor.crawler import crawl_catalog
+from net.ingestor.sources import SourceCatalog
+from net.ingestor.state import IngestionState
 
 
-logger = logging.getLogger(
-    "amule.ingestor"
-)
+logger = logging.getLogger("amule.ingestor")
 
 
 class IngestionScheduler:
@@ -45,6 +28,7 @@ class IngestionScheduler:
     def __init__(
         self,
         catalog: SourceCatalog,
+        state: IngestionState | None = None,
         interval_seconds: int = 900,
         on_resources: Callable | None = None,
     ):
@@ -54,14 +38,15 @@ class IngestionScheduler:
             )
 
         self.catalog = catalog
-        self.interval_seconds = (
-            interval_seconds
-        )
-        self.on_resources = on_resources
 
-        self.known_resource_ids: set[
-            str
-        ] = set()
+        self.state = (
+            state
+            if state is not None
+            else IngestionState()
+        )
+
+        self.interval_seconds = interval_seconds
+        self.on_resources = on_resources
 
         self.running = False
 
@@ -78,41 +63,23 @@ class IngestionScheduler:
             "Starting aMule ingestion cycle."
         )
 
+        known_resource_ids = set(
+            self.state.resource_ids
+        )
+
         result = crawl_catalog(
             self.catalog,
-            self.known_resource_ids,
+            known_resource_ids,
         )
-
-        finished_at = datetime.now(
-            timezone.utc
-        )
-
-        logger.info(
-            "Ingestion cycle completed: "
-            "sources=%s candidates=%s "
-            "resources=%s errors=%s",
-            result.sources_processed,
-            result.candidates_found,
-            result.resources_created,
-            len(result.errors),
-        )
-
-        if result.errors:
-
-            for error in result.errors:
-
-                logger.warning(
-                    "Source error: %s",
-                    error,
-                )
 
         if result.resources:
 
-            for resource in result.resources:
-
-                self.known_resource_ids.add(
+            self.state.add_many(
+                [
                     resource.resource_id
-                )
+                    for resource in result.resources
+                ]
+            )
 
             if self.on_resources:
 
@@ -120,14 +87,32 @@ class IngestionScheduler:
                     result.resources
                 )
 
+        finished_at = datetime.now(
+            timezone.utc
+        )
+
         duration = (
             finished_at - started_at
         ).total_seconds()
 
         logger.info(
-            "Cycle duration: %.2fs",
+            "Ingestion cycle completed: "
+            "sources=%s candidates=%s "
+            "new_resources=%s errors=%s "
+            "duration=%.2fs",
+            result.sources_processed,
+            result.candidates_found,
+            result.resources_created,
+            len(result.errors),
             duration,
         )
+
+        for error in result.errors:
+
+            logger.warning(
+                "Source error: %s",
+                error,
+            )
 
         return result
 
@@ -148,6 +133,11 @@ class IngestionScheduler:
         logger.info(
             "Interval: %s seconds.",
             self.interval_seconds,
+        )
+
+        logger.info(
+            "Known resources: %s",
+            self.state.count(),
         )
 
         while self.running:
@@ -183,6 +173,7 @@ class IngestionScheduler:
 
 def create_scheduler(
     catalog: SourceCatalog | None = None,
+    state: IngestionState | None = None,
     interval_seconds: int = 900,
     on_resources: Callable | None = None,
 ) -> IngestionScheduler:
@@ -191,11 +182,14 @@ def create_scheduler(
     """
 
     if catalog is None:
-
         catalog = SourceCatalog()
+
+    if state is None:
+        state = IngestionState()
 
     return IngestionScheduler(
         catalog=catalog,
+        state=state,
         interval_seconds=interval_seconds,
         on_resources=on_resources,
     )

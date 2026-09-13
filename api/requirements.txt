@@ -1,4 +1,1 @@
-fastapi
-uvicorn[standard]
-cryptography
-pydantic
+-r ../requirements.txt

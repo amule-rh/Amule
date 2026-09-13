@@ -1,284 +1,69 @@
-"""
-aMule — Source Catalog
-
-Maintains the external information sources that aMule can ingest.
-
-Current source type:
-    RSS / Atom
-
-Future source types:
-    Web
-    GitHub
-    API
-    Documents
-    Agent
-
-The catalog is intentionally independent from the crawler.
-"""
-
-from __future__ import annotations
-
-import json
+"""Persistent source catalog for the aMule ingestor."""
 
 from dataclasses import asdict, dataclass
+import json
 from pathlib import Path
-from typing import Optional
-
-
-CATALOG_PATH = Path(
-    "data/ingestor/sources.json"
-)
 
 
 @dataclass
 class Source:
-    """
-    Represents an external information source.
-    """
-
     source_id: str
     name: str
     url: str
     source_type: str = "rss"
     enabled: bool = True
-    category: Optional[str] = None
-    description: Optional[str] = None
+    category: str = "general"
+    description: str = ""
 
 
 class SourceCatalog:
-    """
-    Persistent catalog of aMule ingestion sources.
-    """
-
-    def __init__(
-        self,
-        path: Path = CATALOG_PATH,
-    ):
+    def __init__(self, path: str | Path = "data/ingestor/sources.json"):
         self.path = Path(path)
-        self.sources: dict[
-            str,
-            Source,
-        ] = {}
-
-        self._load()
-
-    def _load(self) -> None:
-        """
-        Load the catalog from disk.
-        """
-
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
-            return
+            self.path.write_text("[]", encoding="utf-8")
 
+    def _load(self) -> list[dict]:
         try:
+            return json.loads(self.path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return []
 
-            data = json.loads(
-                self.path.read_text(
-                    encoding="utf-8"
-                )
-            )
-
-        except (
-            OSError,
-            json.JSONDecodeError,
-        ):
-
-            return
-
-        for item in data:
-
-            try:
-
-                source = Source(
-                    **item
-                )
-
-                self.sources[
-                    source.source_id
-                ] = source
-
-            except TypeError:
-                continue
-
-    def _save(self) -> None:
-        """
-        Persist the catalog.
-        """
-
-        self.path.parent.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
-        data = [
-            asdict(source)
-            for source in self.sources.values()
-        ]
-
-        self.path.write_text(
-            json.dumps(
-                data,
-                indent=2,
-                ensure_ascii=False,
-            ),
+    def _save(self, items: list[dict]) -> None:
+        tmp = self.path.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps(items, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+        tmp.replace(self.path)
 
-    def add(
-        self,
-        source: Source,
-    ) -> Source:
-        """
-        Add or replace a source.
-        """
+    def list(self) -> list[Source]:
+        return [Source(**item) for item in self._load()]
 
-        if not source.source_id:
-            raise ValueError(
-                "source_id is required."
-            )
+    def get(self, source_id: str) -> Source | None:
+        return next((s for s in self.list() if s.source_id == source_id), None)
 
-        if not source.name:
-            raise ValueError(
-                "source name is required."
-            )
-
-        if not source.url:
-            raise ValueError(
-                "source URL is required."
-            )
-
-        self.sources[
-            source.source_id
-        ] = source
-
-        self._save()
-
+    def add(self, source: Source) -> Source:
+        items = self._load()
+        if any(x["source_id"] == source.source_id for x in items):
+            raise ValueError("Source already exists.")
+        items.append(asdict(source))
+        self._save(items)
         return source
 
-    def remove(
-        self,
-        source_id: str,
-    ) -> bool:
-        """
-        Remove a source.
-        """
+    def remove(self, source_id: str) -> bool:
+        items = self._load()
+        updated = [x for x in items if x["source_id"] != source_id]
+        changed = len(updated) != len(items)
+        if changed:
+            self._save(updated)
+        return changed
 
-        if source_id not in self.sources:
-            return False
-
-        del self.sources[
-            source_id
-        ]
-
-        self._save()
-
-        return True
-
-    def get(
-        self,
-        source_id: str,
-    ) -> Optional[Source]:
-        """
-        Retrieve a source by ID.
-        """
-
-        return self.sources.get(
-            source_id
-        )
-
-    def list(
-        self,
-        enabled_only: bool = False,
-        source_type: Optional[str] = None,
-    ) -> list[Source]:
-        """
-        List catalog sources.
-        """
-
-        sources = list(
-            self.sources.values()
-        )
-
-        if enabled_only:
-
-            sources = [
-                source
-                for source in sources
-                if source.enabled
-            ]
-
-        if source_type:
-
-            sources = [
-                source
-                for source in sources
-                if source.source_type
-                == source_type
-            ]
-
-        return sources
-
-    def enable(
-        self,
-        source_id: str,
-    ) -> bool:
-        """
-        Enable a source.
-        """
-
-        source = self.get(
-            source_id
-        )
-
-        if not source:
-            return False
-
-        source.enabled = True
-
-        self._save()
-
-        return True
-
-    def disable(
-        self,
-        source_id: str,
-    ) -> bool:
-        """
-        Disable a source.
-        """
-
-        source = self.get(
-            source_id
-        )
-
-        if not source:
-            return False
-
-        source.enabled = False
-
-        self._save()
-
-        return True
-
-
-def create_default_catalog() -> SourceCatalog:
-    """
-    Create the initial aMule source catalog.
-
-    No external sources are added automatically.
-    """
-
-    return SourceCatalog()
-
-
-if __name__ == "__main__":
-
-    catalog = create_default_catalog()
-
-    print(
-        "aMule Source Catalog"
-    )
-
-    print(
-        f"Sources: {len(catalog.list())}"
-    )
+    def set_enabled(self, source_id: str, enabled: bool) -> Source:
+        items = self._load()
+        for item in items:
+            if item["source_id"] == source_id:
+                item["enabled"] = enabled
+                self._save(items)
+                return Source(**item)
+        raise KeyError(source_id)

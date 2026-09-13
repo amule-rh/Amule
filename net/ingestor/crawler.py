@@ -1,8 +1,7 @@
 """
 aMule — Source Crawler
 
-Orchestrates the ingestion of all enabled sources
-registered in the aMule Source Catalog.
+Orchestrates the ingestion of enabled sources.
 
 Pipeline:
 
@@ -15,6 +14,9 @@ Pipeline:
        Processor
           ↓
     Processed Resources
+
+The crawler is responsible for orchestration.
+Identity and content hashing remain inside the processor.
 """
 
 from __future__ import annotations
@@ -41,35 +43,30 @@ from net.ingestor.sources import (
 
 @dataclass
 class CrawlResult:
-    """
-    Result of a crawler execution.
-    """
-
     sources_processed: int
     candidates_found: int
     resources_created: int
 
-    resources: list[
-        ProcessedResource
-    ]
+    resources: list[ProcessedResource]
 
-    errors: list[
-        dict[str, str]
-    ]
+    errors: list[dict[str, str]]
 
 
 def crawl_rss_source(
     source: Source,
 ) -> list[dict[str, Any]]:
     """
-    Ingest a single RSS/Atom source.
+    Ingest one RSS/Atom source and convert
+    its items into aMule candidates.
     """
 
     items = ingest_rss(
         source.url
     )
 
-    candidates = []
+    candidates: list[
+        dict[str, Any]
+    ] = []
 
     for item in items:
 
@@ -102,20 +99,16 @@ def crawl_source(
     source: Source,
 ) -> list[dict[str, Any]]:
     """
-    Dispatch a source to the appropriate ingestor.
-
-    Currently supported:
-        RSS
-        Atom
-
-    Future:
-        Web
-        GitHub
-        API
-        Documents
+    Crawl a single registered source.
     """
 
-    if source.source_type.lower() in {
+    source_type = (
+        source.source_type
+        .lower()
+        .strip()
+    )
+
+    if source_type in {
         "rss",
         "atom",
     }:
@@ -135,7 +128,10 @@ def crawl_catalog(
     known_resource_ids: set[str] | None = None,
 ) -> CrawlResult:
     """
-    Crawl every enabled source in the catalog.
+    Crawl all enabled sources.
+
+    known_resource_ids contains logical Resource IDs,
+    not content hashes.
     """
 
     if known_resource_ids is None:
@@ -174,9 +170,7 @@ def crawl_catalog(
 
             errors.append(
                 {
-                    "source_id": (
-                        source.source_id
-                    ),
+                    "source_id": source.source_id,
                     "source": source.url,
                     "error": str(error),
                 }
@@ -191,13 +185,17 @@ def crawl_catalog(
         sources_processed=(
             sources_processed
         ),
-        candidates_found=(
-            len(all_candidates)
+
+        candidates_found=len(
+            all_candidates
         ),
-        resources_created=(
-            len(resources)
+
+        resources_created=len(
+            resources
         ),
+
         resources=resources,
+
         errors=errors,
     )
 
@@ -206,28 +204,35 @@ def crawl_to_dict(
     result: CrawlResult,
 ) -> dict[str, Any]:
     """
-    Convert crawler results into
-    an API-friendly structure.
+    Convert crawl results into
+    an API-friendly representation.
     """
 
     return {
         "protocol": "amule",
+
         "version": 1,
+
         "sources_processed": (
             result.sources_processed
         ),
+
         "candidates_found": (
             result.candidates_found
         ),
+
         "resources_created": (
             result.resources_created
         ),
+
         "resources": [
             resource_to_dict(
                 resource
             )
-            for resource in result.resources
+            for resource
+            in result.resources
         ],
+
         "errors": result.errors,
     }
 
@@ -244,7 +249,9 @@ if __name__ == "__main__":
 
     print(
         json.dumps(
-            crawl_to_dict(result),
+            crawl_to_dict(
+                result
+            ),
             indent=2,
             ensure_ascii=False,
         )

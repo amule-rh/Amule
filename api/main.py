@@ -1,8 +1,8 @@
 from pathlib import Path
+import hashlib
 import os
 import re
 import sys
-import uuid
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -23,12 +23,12 @@ from net.ingestor.sources import Source, SourceCatalog
 
 
 # -------------------------------------------------------------------
-# App
+# Application
 # -------------------------------------------------------------------
 
 app = FastAPI(
     title="aMule Net API",
-    version="0.6.1",
+    version="0.6.2",
     description="Decentralized resource layer for AI intelligence.",
 )
 
@@ -74,7 +74,7 @@ if ASSETS_DIR.exists():
 
 
 # -------------------------------------------------------------------
-# Models
+# Request models
 # -------------------------------------------------------------------
 
 class SourceCreateRequest(BaseModel):
@@ -133,7 +133,7 @@ def api_info():
     return {
         "name": "aMule Net API",
         "protocol": "aMule",
-        "version": "0.6.1",
+        "version": "0.6.2",
         "chain": {
             "name": "Robinhood Chain Testnet",
             "chain_id": 46630,
@@ -143,7 +143,7 @@ def api_info():
 
 
 # -------------------------------------------------------------------
-# Health
+# Health check
 # -------------------------------------------------------------------
 
 @app.get("/health")
@@ -151,8 +151,27 @@ def health():
     return {
         "status": "ok",
         "protocol": "amule",
-        "version": "0.6.1",
+        "version": "0.6.2",
     }
+
+
+# -------------------------------------------------------------------
+# Resource ID
+# -------------------------------------------------------------------
+
+def generate_resource_id() -> str:
+    """
+    Generate a 32-byte / 64-hex-character resource ID.
+
+    This ID represents the logical resource identity.
+    It is intentionally different from contentHash.
+    """
+
+    random_bytes = os.urandom(32)
+
+    return hashlib.sha256(
+        random_bytes
+    ).hexdigest()
 
 
 # -------------------------------------------------------------------
@@ -169,30 +188,50 @@ async def upload_resource(
             detail="Filename is required.",
         )
 
+    # ---------------------------------------------------------------
     # Sanitize filename
+    # ---------------------------------------------------------------
+
     safe_name = re.sub(
         r"[^A-Za-z0-9._-]",
         "_",
         file.filename,
     )
 
+    # ---------------------------------------------------------------
+    # Read file
+    # ---------------------------------------------------------------
+
     content = await file.read()
 
-    # Upload size protection
+    # ---------------------------------------------------------------
+    # Validate size
+    # ---------------------------------------------------------------
+
     if len(content) > MAX_UPLOAD:
         raise HTTPException(
             status_code=413,
             detail="File exceeds the MVP upload limit.",
         )
 
-    # Generate stable logical resource ID
-    resource_id = uuid.uuid4().hex
+    # ---------------------------------------------------------------
+    # Generate 32-byte resource ID
+    # ---------------------------------------------------------------
 
+    resource_id = generate_resource_id()
+
+    # ---------------------------------------------------------------
     # Store encrypted resource
+    # ---------------------------------------------------------------
+
     stored = storage.store(
         resource_id,
         content,
     )
+
+    # ---------------------------------------------------------------
+    # Return protocol resource
+    # ---------------------------------------------------------------
 
     return {
         "protocol": "amule",
@@ -216,7 +255,7 @@ async def upload_resource(
 
         "encrypted": True,
 
-        # MVP only.
+        # Temporary MVP key.
         # Production will move key custody
         # into the protocol layer.
         "key": stored.key,
@@ -239,6 +278,10 @@ def list_sources():
     }
 
 
+# -------------------------------------------------------------------
+# Get source
+# -------------------------------------------------------------------
+
 @app.get("/sources/{source_id}")
 def get_source(
     source_id: str,
@@ -254,11 +297,18 @@ def get_source(
     return source.__dict__
 
 
+# -------------------------------------------------------------------
+# Add source
+# -------------------------------------------------------------------
+
 @app.post("/sources")
 def add_source(
     request: SourceCreateRequest,
 ):
+    # ---------------------------------------------------------------
     # Basic URL validation
+    # ---------------------------------------------------------------
+
     if not request.url.startswith(
         (
             "http://",
@@ -269,6 +319,10 @@ def add_source(
             status_code=400,
             detail="Source URL must use HTTP or HTTPS.",
         )
+
+    # ---------------------------------------------------------------
+    # Add source
+    # ---------------------------------------------------------------
 
     try:
         source = catalog.add(
@@ -285,6 +339,10 @@ def add_source(
 
     return source.__dict__
 
+
+# -------------------------------------------------------------------
+# Delete source
+# -------------------------------------------------------------------
 
 @app.delete("/sources/{source_id}")
 def delete_source(
@@ -305,6 +363,10 @@ def delete_source(
     }
 
 
+# -------------------------------------------------------------------
+# Enable source
+# -------------------------------------------------------------------
+
 @app.post("/sources/{source_id}/enable")
 def enable_source(
     source_id: str,
@@ -323,6 +385,10 @@ def enable_source(
             detail="Source not found.",
         )
 
+
+# -------------------------------------------------------------------
+# Disable source
+# -------------------------------------------------------------------
 
 @app.post("/sources/{source_id}/disable")
 def disable_source(

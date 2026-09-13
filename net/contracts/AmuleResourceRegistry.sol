@@ -2,49 +2,29 @@
 pragma solidity ^0.8.24;
 
 /**
- * aMule Net
+ * aMule Resource Registry
  *
- * Decentralized Resource Registry
+ * resourceId = stable logical resource identifier.
+ * contentHash = hash of the current exact content bytes.
  *
- * The registry stores the verifiable identity and metadata
- * required to discover resources in the aMule network.
- *
- * The actual resource content is NOT stored here.
- *
- * Blockchain stores:
- * - resource identity
- * - content hash
- * - owner/operator
- * - storage reference
- * - content type
- * - source/provenance
- * - timestamps
- * - versions
- *
- * Content is stored through an external storage layer.
+ * Updating a resource changes its content hash/version while retaining
+ * the logical resource ID.
  */
 contract AmuleResourceRegistry {
-
     struct Resource {
         bytes32 resourceId;
         address owner;
-
         bytes32 contentHash;
-
         string storageRef;
         string contentType;
         string source;
-
         uint64 createdAt;
         uint64 updatedAt;
-
         uint32 version;
-
         bool active;
     }
 
     mapping(bytes32 => Resource) private resources;
-
     mapping(address => bytes32[]) private ownerResources;
 
     error ResourceAlreadyExists(bytes32 resourceId);
@@ -62,59 +42,30 @@ contract AmuleResourceRegistry {
         string storageRef,
         string contentType,
         string source,
-        uint32 version,
-        uint64 timestamp
+        uint32 version
     );
 
     event ResourceUpdated(
         bytes32 indexed resourceId,
-        address indexed owner,
         bytes32 indexed contentHash,
         string storageRef,
-        string contentType,
-        string source,
-        uint32 version,
-        uint64 timestamp
+        uint32 version
     );
 
-    event ResourceDeactivated(
-        bytes32 indexed resourceId,
-        address indexed owner,
-        uint64 timestamp
-    );
+    event ResourceDeactivated(bytes32 indexed resourceId);
 
-    /**
-     * Publish a new resource.
-     */
     function publishResource(
         bytes32 resourceId,
         bytes32 contentHash,
         string calldata storageRef,
         string calldata contentType,
         string calldata source
-    )
-        external
-    {
-        if (resourceId == bytes32(0)) {
-            revert InvalidResourceId();
-        }
-
-        if (contentHash == bytes32(0)) {
-            revert InvalidContentHash();
-        }
-
-        if (
-            bytes(storageRef).length == 0
-        ) {
-            revert EmptyStorageReference();
-        }
-
-        if (
-            resources[resourceId].createdAt != 0
-        ) {
-            revert ResourceAlreadyExists(
-                resourceId
-            );
+    ) external {
+        if (resourceId == bytes32(0)) revert InvalidResourceId();
+        if (contentHash == bytes32(0)) revert InvalidContentHash();
+        if (bytes(storageRef).length == 0) revert EmptyStorageReference();
+        if (resources[resourceId].createdAt != 0) {
+            revert ResourceAlreadyExists(resourceId);
         }
 
         Resource memory resource = Resource({
@@ -131,10 +82,7 @@ contract AmuleResourceRegistry {
         });
 
         resources[resourceId] = resource;
-
-        ownerResources[msg.sender].push(
-            resourceId
-        );
+        ownerResources[msg.sender].push(resourceId);
 
         emit ResourcePublished(
             resourceId,
@@ -143,229 +91,80 @@ contract AmuleResourceRegistry {
             storageRef,
             contentType,
             source,
-            1,
-            uint64(block.timestamp)
+            1
         );
     }
 
-    /**
-     * Update an existing resource.
-     *
-     * Only the original resource owner
-     * can update it.
-     *
-     * Updating creates a new resource version.
-     */
     function updateResource(
         bytes32 resourceId,
         bytes32 contentHash,
-        string calldata storageRef,
-        string calldata contentType,
-        string calldata source
-    )
-        external
-    {
-        Resource storage resource =
-            resources[resourceId];
+        string calldata storageRef
+    ) external {
+        if (contentHash == bytes32(0)) revert InvalidContentHash();
 
-        if (
-            resource.createdAt == 0
-        ) {
-            revert ResourceNotFound(
-                resourceId
-            );
-        }
+        Resource storage resource = resources[resourceId];
+        if (resource.createdAt == 0) revert ResourceNotFound(resourceId);
+        if (resource.owner != msg.sender) revert NotResourceOwner(resourceId);
+        if (!resource.active) revert InactiveResource(resourceId);
+        if (bytes(storageRef).length == 0) revert EmptyStorageReference();
 
-        if (
-            resource.owner != msg.sender
-        ) {
-            revert NotResourceOwner(
-                resourceId
-            );
-        }
-
-        if (
-            !resource.active
-        ) {
-            revert InactiveResource(
-                resourceId
-            );
-        }
-
-        if (
-            contentHash == bytes32(0)
-        ) {
-            revert InvalidContentHash();
-        }
-
-        if (
-            bytes(storageRef).length == 0
-        ) {
-            revert EmptyStorageReference();
-        }
-
-        resource.contentHash =
-            contentHash;
-
-        resource.storageRef =
-            storageRef;
-
-        resource.contentType =
-            contentType;
-
-        resource.source =
-            source;
-
-        resource.updatedAt =
-            uint64(block.timestamp);
-
+        resource.contentHash = contentHash;
+        resource.storageRef = storageRef;
+        resource.updatedAt = uint64(block.timestamp);
         resource.version += 1;
 
         emit ResourceUpdated(
             resourceId,
-            msg.sender,
             contentHash,
             storageRef,
-            contentType,
-            source,
-            resource.version,
-            uint64(block.timestamp)
+            resource.version
         );
     }
 
-    /**
-     * Deactivate a resource.
-     *
-     * The resource remains permanently recorded
-     * but is no longer considered active.
-     */
-    function deactivateResource(
-        bytes32 resourceId
-    )
-        external
-    {
-        Resource storage resource =
-            resources[resourceId];
-
-        if (
-            resource.createdAt == 0
-        ) {
-            revert ResourceNotFound(
-                resourceId
-            );
-        }
-
-        if (
-            resource.owner != msg.sender
-        ) {
-            revert NotResourceOwner(
-                resourceId
-            );
-        }
+    function deactivateResource(bytes32 resourceId) external {
+        Resource storage resource = resources[resourceId];
+        if (resource.createdAt == 0) revert ResourceNotFound(resourceId);
+        if (resource.owner != msg.sender) revert NotResourceOwner(resourceId);
 
         resource.active = false;
+        resource.updatedAt = uint64(block.timestamp);
 
-        resource.updatedAt =
-            uint64(block.timestamp);
-
-        emit ResourceDeactivated(
-            resourceId,
-            msg.sender,
-            uint64(block.timestamp)
-        );
+        emit ResourceDeactivated(resourceId);
     }
 
-    /**
-     * Retrieve a resource.
-     */
-    function getResource(
-        bytes32 resourceId
-    )
+    function getResource(bytes32 resourceId)
         external
         view
-        returns (
-            Resource memory
-        )
+        returns (Resource memory)
     {
-        if (
-            resources[resourceId].createdAt == 0
-        ) {
-            revert ResourceNotFound(
-                resourceId
-            );
-        }
-
-        return resources[resourceId];
+        Resource memory resource = resources[resourceId];
+        if (resource.createdAt == 0) revert ResourceNotFound(resourceId);
+        return resource;
     }
 
-    /**
-     * Check whether a resource exists.
-     */
-    function resourceExists(
-        bytes32 resourceId
-    )
-        external
-        view
-        returns (bool)
-    {
-        return (
-            resources[resourceId].createdAt != 0
-        );
+    function resourceExists(bytes32 resourceId) external view returns (bool) {
+        return resources[resourceId].createdAt != 0;
     }
 
-    /**
-     * Check whether a resource is active.
-     */
-    function isResourceActive(
-        bytes32 resourceId
-    )
-        external
-        view
-        returns (bool)
-    {
-        Resource storage resource =
-            resources[resourceId];
-
-        return (
-            resource.createdAt != 0
-            && resource.active
-        );
+    function isResourceActive(bytes32 resourceId) external view returns (bool) {
+        return resources[resourceId].createdAt != 0 && resources[resourceId].active;
     }
 
-    /**
-     * Get all resource IDs belonging
-     * to an owner.
-     */
-    function getResourcesByOwner(
-        address owner
-    )
+    function getResourcesByOwner(address owner)
         external
         view
-        returns (
-            bytes32[] memory
-        )
+        returns (bytes32[] memory)
     {
         return ownerResources[owner];
     }
 
-    /**
-     * Get the current version of a resource.
-     */
-    function getResourceVersion(
-        bytes32 resourceId
-    )
+    function getResourceVersion(bytes32 resourceId)
         external
         view
         returns (uint32)
     {
-        if (
-            resources[resourceId].createdAt == 0
-        ) {
-            revert ResourceNotFound(
-                resourceId
-            );
-        }
-
-        return resources[resourceId].version;
+        Resource memory resource = resources[resourceId];
+        if (resource.createdAt == 0) revert ResourceNotFound(resourceId);
+        return resource.version;
     }
 }

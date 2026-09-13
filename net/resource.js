@@ -1,111 +1,55 @@
-/**
- * aMule — Net Resource Model
- *
- * Defines the metadata required to discover and retrieve
- * resources stored through Net Protocol.
- *
- * aMule resources are not necessarily owned by aMule.
- * They can belong to any Net Storage operator.
- */
-
 export function createResourceRecord({
-    resourceId,
-    operator,
-    storageKey,
-    filename = null,
-    contentType = "application/octet-stream",
-    size = 0,
-    encrypted = true,
+  resourceId,
+  operator,
+  storageRef,
+  contentHash = null,
+  filename = null,
+  contentType = "application/octet-stream",
+  size = 0,
+  encrypted = true,
+  source = null,
+  version = 1,
 }) {
-    if (!resourceId) {
-        throw new Error("resourceId is required.");
-    }
+  if (!resourceId) throw new Error("resourceId is required.");
+  if (!operator) throw new Error("operator is required.");
+  if (!storageRef) throw new Error("storageRef is required.");
 
-    if (!operator) {
-        throw new Error("operator is required.");
-    }
-
-    if (!storageKey) {
-        throw new Error("storageKey is required.");
-    }
-
-    return {
-        protocol: "amule",
-        version: 1,
-
-        resourceId,
-
-        storage: {
-            provider: "net",
-            operator,
-            key: storageKey,
-        },
-
-        metadata: {
-            filename,
-            contentType,
-            size,
-            encrypted,
-        },
-    };
+  return {
+    protocol: "amule",
+    version: 1,
+    resourceId,
+    contentHash,
+    storage: {
+      provider: "amule",
+      operator,
+      ref: storageRef,
+    },
+    metadata: {
+      filename,
+      contentType,
+      size,
+      encrypted,
+      source,
+      version,
+    },
+  };
 }
-
-
-/**
- * Validate an aMule resource record.
- */
 
 export function validateResourceRecord(record) {
-    if (!record) {
-        return false;
-    }
-
-    if (record.protocol !== "amule") {
-        return false;
-    }
-
-    if (record.version !== 1) {
-        return false;
-    }
-
-    if (!record.resourceId) {
-        return false;
-    }
-
-    if (!record.storage) {
-        return false;
-    }
-
-    if (record.storage.provider !== "net") {
-        return false;
-    }
-
-    if (!record.storage.operator) {
-        return false;
-    }
-
-    if (!record.storage.key) {
-        return false;
-    }
-
-    return true;
+  return Boolean(
+    record &&
+    record.protocol === "amule" &&
+    record.version === 1 &&
+    record.resourceId &&
+    record.storage &&
+    record.storage.operator &&
+    record.storage.ref
+  );
 }
 
-
-/**
- * Convert a resource record to JSON.
- */
-
 export function serializeResourceRecord(record) {
-    if (!validateResourceRecord(record)) {
-        throw new Error(
-            "Invalid aMule resource record."
-        );
-    }
-
-    return JSON.stringify(
-        record,
-        null,
-        2
-    );
+  if (!validateResourceRecord(record)) {
+    throw new Error("Invalid aMule resource record.");
+  }
+  return JSON.stringify(record, null, 2);
 }

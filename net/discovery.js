@@ -1,122 +1,33 @@
 /**
- * aMule — Net Resource Discovery
+ * Native aMule discovery model.
  *
- * Discovers resources stored by any Net Protocol operator.
- *
- * aMule is not limited to resources created by its own wallet.
+ * Discovery is registry-first: resources may belong to any operator.
+ * This module intentionally does not assume the operator is the local wallet.
  */
 
-import { StorageClient } from "@net-protocol/storage";
-
-
-const NET_CHAIN_ID = Number(
-    process.env.NET_CHAIN_ID || 8453
-);
-
-
-const NET_RPC_URL =
-    process.env.NET_RPC_URL || undefined;
-
-
-const clientOptions = {
-    chainId: NET_CHAIN_ID,
-};
-
-
-if (NET_RPC_URL) {
-    clientOptions.overrides = {
-        rpcUrls: [NET_RPC_URL],
-    };
+export function createDiscoveryQuery({
+  query = null,
+  contentType = null,
+  source = null,
+  operator = null,
+  activeOnly = true,
+} = {}) {
+  return {
+    protocol: "amule",
+    query,
+    contentType,
+    source,
+    operator,
+    activeOnly,
+  };
 }
 
-
-const client = new StorageClient(
-    clientOptions
-);
-
-
-/**
- * Discover all storage keys belonging to an operator.
- *
- * This is the first step for discovering resources
- * published by another aMule user.
- */
-export async function discoverOperator(
-    operatorAddress
-) {
-    if (!operatorAddress) {
-        throw new Error(
-            "Operator address is required."
-        );
-    }
-
-    return await client.getForOperator({
-        operator: operatorAddress,
-    });
-}
-
-
-/**
- * Retrieve one specific resource from an operator.
- */
-export async function discoverResource(
-    operatorAddress,
-    storageKey
-) {
-    if (!operatorAddress) {
-        throw new Error(
-            "Operator address is required."
-        );
-    }
-
-    if (!storageKey) {
-        throw new Error(
-            "Storage key is required."
-        );
-    }
-
-    return await client.getForOperatorAndKey({
-        operator: operatorAddress,
-        key: storageKey,
-    });
-}
-
-
-/**
- * Read a resource through the Net Storage Router.
- *
- * The router can resolve regular/chunked storage.
- */
-export async function retrieveResource(
-    operatorAddress,
-    storageKey
-) {
-    if (!operatorAddress) {
-        throw new Error(
-            "Operator address is required."
-        );
-    }
-
-    if (!storageKey) {
-        throw new Error(
-            "Storage key is required."
-        );
-    }
-
-    return await client.getViaRouter({
-        operator: operatorAddress,
-        key: storageKey,
-    });
-}
-
-
-/**
- * Return Net discovery configuration.
- */
-export function getDiscoveryInfo() {
-    return {
-        provider: "Net Protocol",
-        chainId: NET_CHAIN_ID,
-        status: "ready",
-    };
+export function canRetrieveResource(resource) {
+  return Boolean(
+    resource &&
+    resource.resourceId &&
+    resource.storage &&
+    resource.storage.operator &&
+    resource.storage.ref
+  );
 }

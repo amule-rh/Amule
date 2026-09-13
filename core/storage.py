@@ -1,377 +1,56 @@
-"""
-aMule — Storage Core
+"""Local encrypted storage backend for the MVP."""
 
-Storage abstraction for aMule.
-
-The application does not talk directly to a filesystem or
-blockchain storage provider.
-
-Instead:
-
-    API
-      ↓
-    Storage Core
-      ↓
-    Storage Backend
-
-Current backend:
-    LocalStorageBackend
-
-Future backend:
-    NetStorageBackend
-
-This architecture allows aMule to move from local development
-storage to permanent Net Storage without changing the API layer.
-"""
-
-from __future__ import annotations
-
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+import base64
+import os
 
-from core.encryption import decrypt_data, encrypt_data
-from core.hashing import hash_data
-
-
-# =========================================================
-# LOCAL STORAGE PATH
-# =========================================================
-
-STORAGE_DIR = Path("data/storage")
+from .encryption import decrypt_data, encrypt_data, generate_key
+from .hashing import hash_bytes
 
 
-# =========================================================
-# STORAGE BACKEND INTERFACE
-# =========================================================
-
-class StorageBackend(Protocol):
-    """
-    Generic storage backend.
-
-    Any storage provider used by aMule must implement these
-    operations.
-    """
-
-    def put(
-        self,
-        resource_id: str,
-        data: bytes,
-    ) -> None:
-        """Store encrypted resource data."""
-        ...
-
-    def get(
-        self,
-        resource_id: str,
-    ) -> bytes:
-        """Retrieve encrypted resource data."""
-        ...
-
-    def exists(
-        self,
-        resource_id: str,
-    ) -> bool:
-        """Check whether a resource exists."""
-        ...
+@dataclass
+class StoredResource:
+    resource_id: str
+    content_hash: str
+    ciphertext_hash: str
+    storage_ref: str
+    key: str
+    size: int
+    encrypted: bool = True
 
 
-# =========================================================
-# RESOURCE ID VALIDATION
-# =========================================================
-
-def _validate_resource_id(
-    resource_id: str,
-) -> None:
-    """
-    Validate a resource identifier.
-
-    aMule resource IDs are SHA-256 hashes and therefore must
-    contain exactly 64 hexadecimal characters.
-
-    This also prevents path traversal attacks when using
-    filesystem-based storage.
-    """
-
-    if not isinstance(resource_id, str):
-        raise ValueError(
-            "Resource ID must be a string."
-        )
-
-    if len(resource_id) != 64:
-        raise ValueError(
-            "Invalid resource ID."
-        )
-
-    if any(
-        character not in "0123456789abcdef"
-        for character in resource_id.lower()
-    ):
-        raise ValueError(
-            "Invalid resource ID."
-        )
-
-
-# =========================================================
-# LOCAL STORAGE BACKEND
-# =========================================================
-
-class LocalStorageBackend:
-    """
-    Local filesystem storage backend.
-
-    Used for development and testing.
-
-    This backend is intentionally isolated so it can later
-    be replaced by Net Storage.
-    """
-
-    def __init__(
-        self,
-        root: Path = STORAGE_DIR,
-    ):
+class LocalEncryptedStorage:
+    def __init__(self, root: str | Path = "data/storage"):
         self.root = Path(root)
+        self.root.mkdir(parents=True, exist_ok=True)
 
-    # -----------------------------------------------------
-    # INTERNAL
-    # -----------------------------------------------------
+    def store(self, resource_id: str, content: bytes) -> StoredResource:
+        content_hash = hash_bytes(content)
+        key = generate_key()
+        encrypted = encrypt_data(content, key)
+        ciphertext_hash = hash_bytes(encrypted)
 
-    def _ensure_storage(self) -> None:
-        """Create the storage directory if necessary."""
+        filename = f"{resource_id}.bin"
+        path = self.root / filename
+        path.write_bytes(encrypted)
 
-        self.root.mkdir(
-            parents=True,
-            exist_ok=True,
+        return StoredResource(
+            resource_id=resource_id,
+            content_hash=content_hash,
+            ciphertext_hash=ciphertext_hash,
+            storage_ref=f"local://{filename}",
+            key=base64.urlsafe_b64encode(key).decode("ascii"),
+            size=len(content),
         )
 
-    def _get_path(
-        self,
-        resource_id: str,
-    ) -> Path:
-        """Return the filesystem path for a resource."""
+    def retrieve(self, resource_id: str, key_b64: str) -> bytes:
+        path = self.root / f"{resource_id}.bin"
+        if not path.exists():
+            raise FileNotFoundError(resource_id)
 
-        _validate_resource_id(resource_id)
+        key = base64.urlsafe_b64decode(key_b64.encode("ascii"))
+        return decrypt_data(path.read_bytes(), key)
 
-        return self.root / resource_id
-
-    # -----------------------------------------------------
-    # PUT
-    # -----------------------------------------------------
-
-    def put(
-        self,
-        resource_id: str,
-        data: bytes,
-    ) -> None:
-        """Store encrypted resource data."""
-
-        self._ensure_storage()
-
-        resource_path = self._get_path(
-            resource_id
-        )
-
-        resource_path.write_bytes(
-            data
-        )
-
-    # -----------------------------------------------------
-    # GET
-    # -----------------------------------------------------
-
-    def get(
-        self,
-        resource_id: str,
-    ) -> bytes:
-        """Retrieve encrypted resource data."""
-
-        resource_path = self._get_path(
-            resource_id
-        )
-
-        if not resource_path.exists():
-            raise FileNotFoundError(
-                "Resource not found."
-            )
-
-        return resource_path.read_bytes()
-
-    # -----------------------------------------------------
-    # EXISTS
-    # -----------------------------------------------------
-
-    def exists(
-        self,
-        resource_id: str,
-    ) -> bool:
-        """Check whether a resource exists."""
-
-        resource_path = self._get_path(
-            resource_id
-        )
-
-        return resource_path.exists()
-
-
-# =========================================================
-# ACTIVE STORAGE BACKEND
-# =========================================================
-
-_storage_backend: StorageBackend = (
-    LocalStorageBackend()
-)
-
-
-def configure_storage_backend(
-    backend: StorageBackend,
-) -> None:
-    """
-    Configure the storage backend used by aMule.
-
-    Example future usage:
-
-        configure_storage_backend(
-            NetStorageBackend(...)
-        )
-    """
-
-    global _storage_backend
-
-    _storage_backend = backend
-
-
-def get_storage_backend() -> StorageBackend:
-    """
-    Return the currently configured storage backend.
-    """
-
-    return _storage_backend
-
-
-# =========================================================
-# STORE RESOURCE
-# =========================================================
-
-def store_resource(
-    data: bytes,
-    key: bytes,
-) -> str:
-    """
-    Encrypt and store a resource.
-
-    Flow:
-
-        Raw data
-           ↓
-        Encryption
-           ↓
-        SHA-256
-           ↓
-        Storage Backend
-
-    Returns:
-
-        resource_id
-
-    The resource ID is the SHA-256 hash of the encrypted
-    content.
-    """
-
-    encrypted_data = encrypt_data(
-        data,
-        key,
-    )
-
-    resource_id = hash_data(
-        encrypted_data
-    )
-
-    _storage_backend.put(
-        resource_id,
-        encrypted_data,
-    )
-
-    return resource_id
-
-
-# =========================================================
-# RETRIEVE RESOURCE
-# =========================================================
-
-def retrieve_resource(
-    resource_id: str,
-    key: bytes,
-) -> bytes:
-    """
-    Retrieve and decrypt a resource.
-
-    Flow:
-
-        Storage Backend
-              ↓
-        Encrypted data
-              ↓
-        SHA-256 verification
-              ↓
-        Decryption
-              ↓
-        Original data
-    """
-
-    encrypted_data = _storage_backend.get(
-        resource_id
-    )
-
-    calculated_id = hash_data(
-        encrypted_data
-    )
-
-    if calculated_id != resource_id:
-        raise ValueError(
-            "Resource integrity check failed."
-        )
-
-    return decrypt_data(
-        encrypted_data,
-        key,
-    )
-
-
-# =========================================================
-# DEVELOPMENT TEST
-# =========================================================
-
-if __name__ == "__main__":
-
-    from core.encryption import generate_key
-
-    print(
-        "aMule storage backend:",
-        type(_storage_backend).__name__,
-    )
-
-    original_data = (
-        b"Hello from the aMule network!"
-    )
-
-    key = generate_key()
-
-    resource_id = store_resource(
-        original_data,
-        key,
-    )
-
-    print(
-        "Resource ID:",
-        resource_id,
-    )
-
-    recovered_data = retrieve_resource(
-        resource_id,
-        key,
-    )
-
-    assert recovered_data == original_data
-
-    print(
-        "aMule storage test: OK"
-    )
+    def exists(self, resource_id: str) -> bool:
+        return (self.root / f"{resource_id}.bin").exists()
